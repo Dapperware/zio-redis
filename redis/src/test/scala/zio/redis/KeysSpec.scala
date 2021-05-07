@@ -23,20 +23,20 @@ trait KeysSpec extends BaseSpec {
           key   <- uuid
           value <- uuid
           _     <- set(key, value)
-          v     <- get[String, String](key)
+          v     <- get(key).returning[String]
         } yield assert(v)(isSome(equalTo(value)))
       },
       testM("get non-existing key") {
         for {
           key <- uuid
-          v   <- get[String, String](key)
+          v   <- get(key).returning[String]
         } yield assert(v)(isNone)
       },
       testM("handles wrong types") {
         for {
           key <- uuid
           _   <- sAdd(key, "1", "2", "3")
-          v   <- get[String, String](key).either
+          v   <- get(key).returning[String].either
         } yield assert(v)(isLeft)
       },
       testM("check whether or not key exists") {
@@ -113,7 +113,7 @@ trait KeysSpec extends BaseSpec {
           dumped   <- dump(key)
           _        <- del(key)
           restore  <- restore(key, 0L, dumped).either
-          restored <- get[String, String](key)
+          restored <- get(key).returning[String]
         } yield assert(restore)(isRight) && assert(restored)(isSome(equalTo(value)))
       } @@ ignore,
       suite("migrate")(
@@ -132,8 +132,8 @@ trait KeysSpec extends BaseSpec {
                           replace = Option(Replace),
                           keys = None
                         )
-            originGet <- get[String, String](key)
-            destGet   <- get[String, String](key).provideLayer(KeysSpec.SecondExecutor)
+            originGet <- get(key).returning[String]
+            destGet   <- get(key).returning[String].provideLayer(KeysSpec.SecondExecutor)
           } yield assert(response)(equalTo("OK")) &&
             assert(originGet)(isSome(equalTo(value))) &&
             assert(destGet)(isSome(equalTo(value)))
@@ -154,8 +154,8 @@ trait KeysSpec extends BaseSpec {
                 replace = Option(Replace),
                 keys = None
               )
-            originGet <- get[String, String](key)
-            destGet   <- get[String, String](key).provideLayer(KeysSpec.SecondExecutor)
+            originGet <- get(key).returning[String]
+            destGet   <- get(key).returning[String].provideLayer(KeysSpec.SecondExecutor)
           } yield assert(response)(equalTo("OK")) &&
             assert(originGet)(isNone) &&
             assert(destGet)(isSome(equalTo(value)))
@@ -255,7 +255,7 @@ trait KeysSpec extends BaseSpec {
             value   <- uuid
             _       <- set(key, value)
             renamed <- rename(key, newKey).either
-            v       <- get[String, String](newKey)
+            v       <- get(newKey).returning[String]
           } yield assert(renamed)(isRight) && assert(v)(isSome(equalTo(value)))
         },
         testM("try to rename non-existing key") {
@@ -272,7 +272,7 @@ trait KeysSpec extends BaseSpec {
             value   <- uuid
             _       <- set(key, value)
             renamed <- renameNx(key, newKey)
-            v       <- get[String, String](newKey)
+            v       <- get(newKey).returning[String]
           } yield assert(renamed)(isTrue) && assert(v)(isSome(equalTo(value)))
         },
         testM("try to rename non-existing key with renameNx command") {
