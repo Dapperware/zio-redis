@@ -60,5 +60,5 @@ class SDiffBenchmarks extends BenchmarkRuntime {
   }
 
   @Benchmark
-  def zio(): Unit = zioUnsafeRun(ZIO.foreach_(items)(_ => sDiff[String, String](key, otherKey)))
+  def zio(): Unit = zioUnsafeRun(ZIO.foreach_(items)(_ => sDiff(key, otherKey).returning[String]))
 }

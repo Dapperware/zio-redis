@@ -292,10 +292,10 @@ trait Geo {
 }
 
 private[redis] object Geo {
-  final val GeoAdd                 = "GEOADD"
-  final val GeoDist                = "GEODIST"
-  final val GeoHash                = "GEOHASH"
-  final val GeoPos                 = "GEOPOS"
-  final val GeoRadius              = "GEORADIUS"
-  final val GeoRadiusByMember      = "GEORADIUSBYMEMBER"
+  final val GeoAdd            = "GEOADD"
+  final val GeoDist           = "GEODIST"
+  final val GeoHash           = "GEOHASH"
+  final val GeoPos            = "GEOPOS"
+  final val GeoRadius         = "GEORADIUS"
+  final val GeoRadiusByMember = "GEORADIUSBYMEMBER"
 }
