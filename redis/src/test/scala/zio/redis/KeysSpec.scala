@@ -330,7 +330,7 @@ trait KeysSpec extends BaseSpec {
             key    <- uuid
             field  <- uuid
             value  <- uuid
-            _      <- xAdd[String, String, String, String, String](key, "*", (field, value))
+            _      <- xAdd(key, "*", (field, value)).returning[String]
             stream <- typeOf(key)
           } yield assert(stream)(equalTo(RedisType.Stream))
         }
