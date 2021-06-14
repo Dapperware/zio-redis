@@ -26,6 +26,7 @@ object ContributorsCache {
 
   private[this] def read(repository: Repository): ZIO[RedisExecutor, ApiError, Contributors] =
     get[String, String](repository.key)
+      .returning[String]
       .someOrFail(ApiError.CacheMiss(repository.key))
       .map(_.fromJson[Contributors])
       .rightOrFail(ApiError.CorruptedData)
