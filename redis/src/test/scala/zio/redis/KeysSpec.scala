@@ -405,7 +405,7 @@ trait KeysSpec extends BaseSpec {
             resultKey <- uuid
             _         <- lPush(key, "1", "0", "2")
             count     <- sortStore(key, Store(resultKey))
-            sorted    <- lRange[String, String](resultKey, Range(0, 2))
+            sorted    <- lRange(resultKey, 0 to 2).returning[String]
           } yield assert(sorted)(equalTo(Chunk("0", "1", "2"))) && assert(count)(equalTo(3L))
         }
       )
