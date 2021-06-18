@@ -128,18 +128,17 @@ trait Hashes {
     key: K,
     field: F,
     fields: F*
-  ): ResultBuilder[({ type lambda[+x] = Chunk[Option[x]] })#lambda] = {
+  ): ResultBuilder[({ type lambda[+x] = Chunk[Option[x]] })#lambda] =
     new ResultBuilder[({ type lambda[+x] = Chunk[Option[x]] })#lambda] {
-      def returning[V: Schema]: ZIO[RedisExecutor,RedisError,Chunk[Option[V]]] = {
-    val command = RedisCommand(
-      HmGet,
-      Tuple2(ArbitraryInput[K](), NonEmptyList(ArbitraryInput[F]())),
-      ChunkOutput(OptionalOutput(ArbitraryOutput[V]()))
-    )
-    command.run((key, (field, fields.toList)))
+      def returning[V: Schema]: ZIO[RedisExecutor, RedisError, Chunk[Option[V]]] = {
+        val command = RedisCommand(
+          HmGet,
+          Tuple2(ArbitraryInput[K](), NonEmptyList(ArbitraryInput[F]())),
+          ChunkOutput(OptionalOutput(ArbitraryOutput[V]()))
+        )
+        command.run((key, (field, fields.toList)))
       }
     }
-  }
 
   /**
    *  Sets the specified `field -> value` pairs in the hash stored at `key`.
