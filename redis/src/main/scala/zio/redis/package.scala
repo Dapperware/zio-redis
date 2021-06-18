@@ -19,7 +19,7 @@ package object redis
     with options.Lists
     with options.Streams {
 
-  type Id[A]         = A
+  type Id[+A]        = A
   type RedisExecutor = Has[RedisExecutor.Service]
 
 }

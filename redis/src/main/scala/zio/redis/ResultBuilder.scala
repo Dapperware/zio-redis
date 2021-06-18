@@ -3,7 +3,7 @@ package zio.redis
 import zio.ZIO
 import zio.schema.Schema
 
-trait ResultBuilder[F[_]] {
+trait ResultBuilder[+F[+_]] {
   import ResultBuilder.NeedsReturnType
 
   def returning[R: Schema]: ZIO[RedisExecutor, RedisError, F[R]]
