@@ -271,7 +271,6 @@ trait Keys {
     command.run((key, ttl, value, replace, absTtl, idleTime, freq))
   }
 
-  // TODO: handle scan output
   /**
    * Iterates the set of keys in the currently selected Redis database. An iteration starts when the cursor is set to 0,
    * and terminates when the cursor returned by the server is 0.
@@ -283,19 +282,22 @@ trait Keys {
    * @return returns an updated cursor that the user needs to use as the cursor argument in the next call along with the
    *         values.
    */
-  final def scan[K: Schema](
+  final def scan(
     cursor: Long,
     pattern: Option[String] = None,
     count: Option[Count] = None,
     `type`: Option[RedisType] = None
-  ): ZIO[RedisExecutor, RedisError, (Long, Chunk[K])] = {
-    val command = RedisCommand(
-      Scan,
-      Tuple4(LongInput, OptionalInput(PatternInput), OptionalInput(CountInput), OptionalInput(RedisTypeInput)),
-      Tuple2Output(ArbitraryOutput[Long](), ChunkOutput(ArbitraryOutput[K]()))
-    )
-    command.run((cursor, pattern.map(Pattern), count, `type`))
-  }
+  ): ResultBuilder[({ type lambda[+x] = (Long, Chunk[x]) })#lambda] =
+    new ResultBuilder[({ type lambda[+x] = (Long, Chunk[x]) })#lambda] {
+      def returning[K: Schema]: ZIO[RedisExecutor, RedisError, (Long, Chunk[K])] = {
+        val command = RedisCommand(
+          Scan,
+          Tuple4(LongInput, OptionalInput(PatternInput), OptionalInput(CountInput), OptionalInput(RedisTypeInput)),
+          Tuple2Output(ArbitraryOutput[Long](), ChunkOutput(ArbitraryOutput[K]()))
+        )
+        command.run((cursor, pattern.map(Pattern), count, `type`))
+      }
+    }
 
   /**
    * Sorts the list, set, or sorted set stored at key. Returns the sorted elements.

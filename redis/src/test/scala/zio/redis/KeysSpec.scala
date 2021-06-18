@@ -91,7 +91,7 @@ trait KeysSpec extends BaseSpec {
             key             <- uuid
             value           <- uuid
             _               <- set(key, value)
-            scan            <- scan[String](0L, pattern, count, redisType)
+            scan            <- scan(0L, pattern, count, redisType).returning[String]
             (next, elements) = scan
           } yield assert(next)(isGreaterThanEqualTo(0L)) && assert(elements)(isNonEmpty)
         }
