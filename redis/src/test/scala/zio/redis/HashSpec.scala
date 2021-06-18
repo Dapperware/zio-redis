@@ -66,7 +66,7 @@ trait HashSpec extends BaseSpec {
             field  <- uuid
             value  <- uuid
             _      <- hmSet(hash, field -> value)
-            result <- hmGet[String, String, String](hash, field)
+            result <- hmGet(hash, field).returning[String]
           } yield assert(result)(hasSameElements(Chunk(Some(value))))
         },
         testM("set multiple fields for hash") {
@@ -76,8 +76,8 @@ trait HashSpec extends BaseSpec {
             field2  <- uuid
             value   <- uuid
             _       <- hmSet(hash, field1 -> value, field2 -> value)
-            result1 <- hmGet[String, String, String](hash, field1)
-            result2 <- hmGet[String, String, String](hash, field2)
+            result1 <- hmGet(hash, field1).returning[String]
+            result2 <- hmGet(hash, field2).returning[String]
           } yield assert(result1)(hasSameElements(Chunk(Some(value)))) &&
             assert(result2)(hasSameElements(Chunk(Some(value))))
         },
@@ -89,7 +89,7 @@ trait HashSpec extends BaseSpec {
             value1 <- uuid
             value2 <- uuid
             _      <- hmSet(hash, field1 -> value1, field2 -> value2)
-            result <- hmGet[String, String, String](hash, field1, field2)
+            result <- hmGet(hash, field1, field2).returning[String]
           } yield assert(result)(hasSameElements(Chunk(Some(value1), Some(value2))))
         },
         testM("delete field for hash") {
@@ -99,7 +99,7 @@ trait HashSpec extends BaseSpec {
             value   <- uuid
             _       <- hmSet(hash, field -> value)
             deleted <- hDel(hash, field)
-            result  <- hmGet[String, String, String](hash, field)
+            result  <- hmGet(hash, field).returning[String]
           } yield assert(deleted)(equalTo(1L)) && assert(result)(hasSameElements(Chunk(None)))
         },
         testM("delete multiple fields for hash") {
@@ -111,7 +111,7 @@ trait HashSpec extends BaseSpec {
             value   <- uuid
             _       <- hmSet(hash, field1 -> value, field2 -> value, field3 -> value)
             deleted <- hDel(hash, field1, field3)
-            result  <- hmGet[String, String, String](hash, field1, field2, field3)
+            result  <- hmGet(hash, field1, field2, field3).returning[String]
           } yield assert(deleted)(equalTo(2L)) &&
             assert(result)(hasSameElements(Chunk(None, Some(value), None)))
         }

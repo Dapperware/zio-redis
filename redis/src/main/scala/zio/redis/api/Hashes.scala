@@ -116,7 +116,6 @@ trait Hashes {
     command.run(key)
   }
 
-  // TODO: support F[G[_]] result builder
   /**
    * Returns the values associated with the specified `fields` in the hash stored at `key`.
    *
@@ -125,17 +124,21 @@ trait Hashes {
    * @param fields additional fields
    * @return chunk of values, where value is `None` if the field is not in the hash.
    */
-  final def hmGet[K: Schema, F: Schema, V: Schema](
+  final def hmGet[K: Schema, F: Schema](
     key: K,
     field: F,
     fields: F*
-  ): ZIO[RedisExecutor, RedisError, Chunk[Option[V]]] = {
+  ): ResultBuilder[({ type lambda[+x] = Chunk[Option[x]] })#lambda] = {
+    new ResultBuilder[({ type lambda[+x] = Chunk[Option[x]] })#lambda] {
+      def returning[V: Schema]: ZIO[RedisExecutor,RedisError,Chunk[Option[V]]] = {
     val command = RedisCommand(
       HmGet,
       Tuple2(ArbitraryInput[K](), NonEmptyList(ArbitraryInput[F]())),
       ChunkOutput(OptionalOutput(ArbitraryOutput[V]()))
     )
     command.run((key, (field, fields.toList)))
+      }
+    }
   }
 
   /**
