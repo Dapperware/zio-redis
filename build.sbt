@@ -66,8 +66,8 @@ lazy val example =
     .settings(
       publish / skip := true,
       libraryDependencies ++= Seq(
-        "com.softwaremill.sttp.client3" %% "async-http-client-backend-zio" % "3.3.11",
-        "com.softwaremill.sttp.client3" %% "zio-json"                      % "3.3.11",
+        "com.softwaremill.sttp.client3" %% "async-http-client-backend-zio" % "3.3.13",
+        "com.softwaremill.sttp.client3" %% "zio-json"                      % "3.3.13",
         "dev.zio"                       %% "zio-streams"                   % Zio,
         "dev.zio"                       %% "zio-config-magnolia"           % "1.0.6",
         "dev.zio"                       %% "zio-config-typesafe"           % "1.0.6",
