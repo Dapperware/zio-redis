@@ -71,7 +71,7 @@ lazy val example =
         "dev.zio"                       %% "zio-streams"                   % Zio,
         "dev.zio"                       %% "zio-config-magnolia"           % "1.0.6",
         "dev.zio"                       %% "zio-config-typesafe"           % "1.0.6",
-        "dev.zio"                       %% "zio-prelude"                   % "1.0.0-RC5",
+        "dev.zio"                       %% "zio-prelude"                   % "1.0.0-RC6",
         "dev.zio"                       %% "zio-json"                      % "0.1.5",
         "io.d11"                        %% "zhttp"                         % "1.0.0.0-RC17",
         "io.github.kitlangton"          %% "zio-magic"                     % "0.3.6"
