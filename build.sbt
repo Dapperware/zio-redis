@@ -52,7 +52,7 @@ lazy val benchmarks =
     .settings(
       publish / skip := true,
       libraryDependencies ++= Seq(
-        "dev.profunktor"    %% "redis4cats-effects" % "0.14.0",
+        "dev.profunktor"    %% "redis4cats-effects" % "1.0.0",
         "io.chrisdavenport" %% "rediculous"         % "0.0.12",
         "io.laserdisc"      %% "laserdisc-fs2"      % "0.4.1"
       )
