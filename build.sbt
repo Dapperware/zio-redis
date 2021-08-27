@@ -54,7 +54,7 @@ lazy val benchmarks =
       libraryDependencies ++= Seq(
         "dev.profunktor"    %% "redis4cats-effects" % "0.14.0",
         "io.chrisdavenport" %% "rediculous"         % "0.0.12",
-        "io.laserdisc"      %% "laserdisc-fs2"      % "0.4.1"
+        "io.laserdisc"      %% "laserdisc-fs2"      % "0.5.0"
       )
     )
 
