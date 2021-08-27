@@ -1,5 +1,6 @@
 package zio.redis
 
+import java.net.InetAddress
 import java.time.Instant
 
 import zio.duration._
@@ -23,6 +24,15 @@ object InputSpec extends BaseSpec {
           for {
             result <- Task(AbsTtlInput.encode(AbsTtl))
           } yield assert(result)(equalTo(respArgs("ABSTTL")))
+        }
+      ),
+      suite("Address")(
+        testM("valid value") {
+          val ip   = InetAddress.getByName("127.0.0.1")
+          val port = 42
+          for {
+            result <- Task(AddressInput.encode(Address(ip, port)))
+          } yield assert(result)(equalTo(respArgs("127.0.0.1:42")))
         }
       ),
       suite("Aggregate")(
@@ -208,6 +218,89 @@ object InputSpec extends BaseSpec {
           for {
             result <- Task(ChangedInput.encode(Changed))
           } yield assert(result)(equalTo(respArgs("CH")))
+        }
+      ),
+      suite("ClientKill")(
+        testM("address") {
+          val address = InetAddress.getByName("127.0.0.1")
+          val port    = 42
+          for {
+            result <- Task(ClientKillInput.encode(ClientKillFilter.Address(address, port)))
+          } yield assert(result)(equalTo(respArgs("ADDR", "127.0.0.1:42")))
+        },
+        testM("local address") {
+          val address = InetAddress.getByName("127.0.0.1")
+          val port    = 42
+          for {
+            result <- Task(ClientKillInput.encode(ClientKillFilter.LocalAddress(address, port)))
+          } yield assert(result)(equalTo(respArgs("LADDR", s"127.0.0.1:42")))
+        },
+        testM("client id") {
+          val id = 42L
+          for {
+            result <- Task(ClientKillInput.encode(ClientKillFilter.Id(id)))
+          } yield assert(result)(equalTo(respArgs("ID", "42")))
+        },
+        testM("type") {
+          val clientType = ClientType.PubSub
+          for {
+            result <- Task(ClientKillInput.encode(ClientKillFilter.Type(clientType)))
+          } yield assert(result)(equalTo(respArgs("TYPE", "pubsub")))
+        },
+        testM("user") {
+          val user = "Foo Bar"
+          for {
+            result <- Task(ClientKillInput.encode(ClientKillFilter.User(user)))
+          } yield assert(result)(equalTo(respArgs("USER", "Foo Bar")))
+        },
+        testM("skip me") {
+          for {
+            result <- Task(ClientKillInput.encode(ClientKillFilter.SkipMe(true)))
+          } yield assert(result)(equalTo(respArgs("SKIPME", "YES")))
+        }
+      ),
+      suite("ClientType")(
+        testM("valid value") {
+          for {
+            result <- Task(ClientTypeInput.encode(ClientType.Replica))
+          } yield assert(result)(equalTo(respArgs("TYPE", "replica")))
+        }
+      ),
+      suite("ClientPauseMode")(
+        testM("all") {
+          for {
+            result <- Task(ClientPauseModeInput.encode(ClientPauseMode.All))
+          } yield assert(result)(equalTo(respArgs("ALL")))
+        },
+        testM("write") {
+          for {
+            result <- Task(ClientPauseModeInput.encode(ClientPauseMode.Write))
+          } yield assert(result)(equalTo(respArgs("WRITE")))
+        }
+      ),
+      suite("ClientTracking")(
+        testM("off") {
+          for {
+            result <- Task(ClientTrackingInput.encode(None))
+          } yield assert(result)(equalTo(respArgs("OFF")))
+        },
+        testM("client redirect with noloop and prefixes") {
+          val clientId = 42L
+          val prefixes = Chunk("prefix1", "prefix2", "prefix3")
+          for {
+            result <- Task(ClientTrackingInput.encode(Some((Some(clientId), None, true, prefixes))))
+          } yield assert(result)(
+            equalTo(
+              respArgs("ON", "REDIRECT", clientId.toString) ++ prefixes
+                .flatMap(respArgs("PREFIX", _)) ++ respArgs("NOLOOP")
+            )
+          )
+        },
+        testM("broadcast mode") {
+          for {
+            result <-
+              Task(ClientTrackingInput.encode(Some((None, Some(ClientTrackingMode.Broadcast), false, Chunk.empty))))
+          } yield assert(result)(equalTo(respArgs("ON", "BCAST")))
         }
       ),
       suite("Copy")(
@@ -925,6 +1018,25 @@ object InputSpec extends BaseSpec {
           } yield assert(result)(equalTo(respArgs("NX")))
         }
       ),
+      suite("Id")(
+        testM("valid value") {
+          for {
+            result <- Task(IdInput.encode(10))
+          } yield assert(result)(equalTo(respArgs("ID", "10")))
+        }
+      ),
+      suite("UnblockBehavior")(
+        testM("timeout") {
+          for {
+            result <- Task(UnblockBehaviorInput.encode(UnblockBehavior.Timeout))
+          } yield assert(result)(equalTo(respArgs("TIMEOUT")))
+        },
+        testM("error") {
+          for {
+            result <- Task(UnblockBehaviorInput.encode(UnblockBehavior.Error))
+          } yield assert(result)(equalTo(respArgs("ERROR")))
+        }
+      ),
       suite("Varargs")(
         testM("with multiple elements") {
           for {
@@ -1159,6 +1271,18 @@ object InputSpec extends BaseSpec {
             resultWithoutOption <- Task(GetExPersistInput[String]().encode("key" -> false))
           } yield assert(result)(equalTo(respArgs("key", "PERSIST"))) &&
             assert(resultWithoutOption)(equalTo(respArgs("key")))
+        }
+      ),
+      suite("YesNo")(
+        testM("yes") {
+          for {
+            result <- Task(YesNoInput.encode(true))
+          } yield assert(result)(equalTo(respArgs("YES")))
+        },
+        testM("no") {
+          for {
+            result <- Task(YesNoInput.encode(false))
+          } yield assert(result)(equalTo(respArgs("NO")))
         }
       )
     )

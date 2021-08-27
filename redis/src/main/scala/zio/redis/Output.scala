@@ -1,5 +1,7 @@
 package zio.redis
 
+import java.net.InetAddress
+
 import zio.Chunk
 import zio.duration._
 import zio.schema.Schema
@@ -238,6 +240,14 @@ object Output {
       respValue match {
         case RespValue.SimpleString("OK") => ()
         case other                        => throw ProtocolError(s"$other isn't unit.")
+      }
+  }
+
+  case object ResetOutput extends Output[Unit] {
+    protected def tryDecode(respValue: RespValue)(implicit codec: Codec): Unit =
+      respValue match {
+        case RespValue.SimpleString("RESET") => ()
+        case other                           => throw ProtocolError(s"$other isn't unit.")
       }
   }
 
@@ -705,5 +715,161 @@ object Output {
     catch {
       case _: NumberFormatException => throw ProtocolError(s"'$text' isn't a double.")
     }
+  }
+
+  case object ClientInfoOutput extends Output[Chunk[ClientInfo]] {
+    private def parseLong(s: String): Option[Long] =
+      try Some(s.toLong)
+      catch { case _: NumberFormatException => None }
+
+    private def parseInt(s: String): Option[Int] =
+      try Some(s.toInt)
+      catch { case _: NumberFormatException => None }
+
+    protected def tryDecode(respValue: RespValue)(implicit codec: Codec): Chunk[ClientInfo] =
+      respValue match {
+        case bulk @ RespValue.BulkString(_) =>
+          val clients: List[Map[String, String]] = bulk.asString.split('\n').toList.map {
+            _.split(' ').toList.map {
+              _.split('=').toList match {
+                case key :: value :: Nil => key -> value
+                case other               => throw ProtocolError(s"Invalid text $other in client information")
+              }
+            }.toMap
+          }
+          Chunk.fromIterable(clients).map { client =>
+            val flags: Set[ClientFlag] = client
+              .get("flags")
+              .map { s =>
+                import ClientFlag._
+                s.collect {
+                  case 'A' => ToBeClosedAsap
+                  case 'b' => Blocked
+                  case 'c' => ToBeClosedAfterReply
+                  case 'd' => WatchedKeysModified
+                  case 'M' => IsMaster
+                  case 'O' => MonitorMode
+                  case 'P' => PubSub
+                  case 'r' => ReadOnlyMode
+                  case 'S' => Replica
+                  case 'u' => Unblocked
+                  case 'U' => UnixDomainSocket
+                  case 'x' => MultiExecContext
+                  case 't' => KeysTrackingEnabled
+                  case 'R' => TrackingTargetClientInvalid
+                  case 'B' => BroadcastTrackingMode
+                }.toSet[ClientFlag]
+              }
+              .getOrElse(Set.empty)
+            val events =
+              client
+                .get("events")
+                .map(s => ClientEvents(readable = s.contains('r'), writable = s.contains('w')))
+                .getOrElse(ClientEvents())
+            ClientInfo(
+              id = client.get("id").flatMap(parseLong).getOrElse(0L),
+              name = client.get("name"),
+              address = client.get("addr").map(InetAddress.getByName),
+              localAddress = client.get("laddr").map(InetAddress.getByName),
+              fileDescriptor = client.get("fd").flatMap(parseLong),
+              age = client.get("age").flatMap(parseLong).map(_.seconds),
+              idle = client.get("idle").flatMap(parseLong).map(_.seconds),
+              flags = flags,
+              databaseId = client.get("db").flatMap(parseLong),
+              subscriptions = client.get("sub").flatMap(parseInt).getOrElse(0),
+              patternSubscriptions = client.get("psub").flatMap(parseInt).getOrElse(0),
+              multiCommands = client.get("multi").flatMap(parseInt).getOrElse(0),
+              queryBufferLength = client.get("qbuf").flatMap(parseInt),
+              queryBufferFree = client.get("qbuf-free").flatMap(parseInt),
+              outputBufferLength = client.get("obl").flatMap(parseInt),
+              outputListLength = client.get("oll").flatMap(parseInt),
+              outputBufferMem = client.get("omem").flatMap(parseLong),
+              events = events,
+              lastCommand = client.get("cmd"),
+              argvMemory = client.get("argv-mem").flatMap(parseLong),
+              totalMemory = client.get("tot-mem").flatMap(parseLong),
+              redirectionClientId = client.get("redir").flatMap(parseLong),
+              user = client.get("user")
+            )
+          }
+        case other => throw ProtocolError(s"$other isn't a bulk string")
+      }
+  }
+
+  case object ClientTrackingInfoOutput extends Output[ClientTrackingInfo] {
+    protected def tryDecode(respValue: RespValue)(implicit codec: Codec): ClientTrackingInfo =
+      respValue match {
+        case RespValue.NullArray => throw ProtocolError(s"Array must not be empty")
+        case RespValue.Array(values) if values.length % 2 == 0 =>
+          val fields = values.toList
+            .grouped(2)
+            .map {
+              case (bulk @ RespValue.BulkString(_)) :: value :: Nil => (bulk.asString, value)
+              case other                                            => throw ProtocolError(s"$other isn't a valid format")
+            }
+            .toMap
+          ClientTrackingInfo(
+            fields
+              .get("flags")
+              .map {
+                case RespValue.Array(value) =>
+                  val set = value.map {
+                    case bulk @ RespValue.BulkString(_) => bulk.asString
+                    case other                          => throw ProtocolError(s"$other isn't a string")
+                  }.toSet
+                  ClientTrackingFlags(
+                    set.contains("on"),
+                    set match {
+                      case s if s.contains("optin")  => Some(ClientTrackingMode.OptIn)
+                      case s if s.contains("optout") => Some(ClientTrackingMode.OptOut)
+                      case s if s.contains("bcast")  => Some(ClientTrackingMode.Broadcast)
+                      case _                         => None
+                    },
+                    set.contains("noloop"),
+                    set match {
+                      case s if s.contains("caching-yes") => Some(true)
+                      case s if s.contains("caching-no")  => Some(false)
+                      case _                              => None
+                    },
+                    set.contains("broken_redirect")
+                  )
+                case other => throw ProtocolError(s"$other isn't an array with elements")
+              }
+              .getOrElse(throw ProtocolError("Missing flags field")),
+            fields
+              .get("redirect")
+              .map {
+                case RespValue.Integer(-1L)         => None
+                case RespValue.Integer(v) if v > 0L => Some(v)
+                case RespValue.Integer(v)           => throw ProtocolError(s"$v isn't a valid integer")
+                case other                          => throw ProtocolError(s"$other isn't an integer")
+              }
+              .getOrElse(throw ProtocolError("Missing redirect field")),
+            fields
+              .get("prefixes")
+              .map {
+                case RespValue.NullArray => Set.empty[String]
+                case RespValue.Array(value) =>
+                  value.map {
+                    case bulk @ RespValue.BulkString(_) => bulk.asString
+                    case other                          => throw ProtocolError(s"$other isn't a string")
+                  }.toSet[String]
+                case other => throw ProtocolError(s"$other isn't an array")
+              }
+              .getOrElse(throw ProtocolError("Missing prefixes field"))
+          )
+        case array @ RespValue.Array(_) => throw ProtocolError(s"$array doesn't have an even number of elements")
+        case other                      => throw ProtocolError(s"$other isn't an array")
+      }
+  }
+
+  case object ClientTrackingRedirectOutput extends Output[ClientTrackingRedirect] {
+    protected def tryDecode(respValue: RespValue)(implicit codec: Codec): ClientTrackingRedirect =
+      respValue match {
+        case RespValue.Integer(-1L)         => ClientTrackingRedirect.NotEnabled
+        case RespValue.Integer(0L)          => ClientTrackingRedirect.NotRedirected
+        case RespValue.Integer(v) if v > 0L => ClientTrackingRedirect.RedirectedTo(v)
+        case other                          => throw ProtocolError(s"$other isn't an integer >= -1")
+      }
   }
 }

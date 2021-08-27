@@ -25,6 +25,11 @@ object Input {
       Chunk.single(encodeString(data.stringify))
   }
 
+  case object AddressInput extends Input[Address] {
+    def encode(data: Address)(implicit codec: Codec): Chunk[RespValue.BulkString] =
+      Chunk.single(encodeString(data.stringify))
+  }
+
   case object AggregateInput extends Input[Aggregate] {
     def encode(data: Aggregate)(implicit codec: Codec): Chunk[RespValue.BulkString] =
       Chunk(encodeString("AGGREGATE"), encodeString(data.stringify))
@@ -94,6 +99,51 @@ object Input {
   case object ChangedInput extends Input[Changed] {
     def encode(data: Changed)(implicit codec: Codec): Chunk[RespValue.BulkString] =
       Chunk.single(encodeString(data.stringify))
+  }
+
+  case object ClientKillInput extends Input[ClientKillFilter] {
+    def encode(data: ClientKillFilter)(implicit codec: Codec): Chunk[RespValue.BulkString] = data match {
+      case addr: ClientKillFilter.Address       => Chunk(encodeString("ADDR"), encodeString(addr.stringify))
+      case laddr: ClientKillFilter.LocalAddress => Chunk(encodeString("LADDR"), encodeString(laddr.stringify))
+      case ClientKillFilter.Id(clientId)        => Chunk(encodeString("ID"), encodeString(clientId.toString))
+      case ClientKillFilter.Type(clientType)    => Chunk(encodeString("TYPE"), encodeString(clientType.stringify))
+      case ClientKillFilter.User(username)      => Chunk(encodeString("USER"), encodeString(username))
+      case ClientKillFilter.SkipMe(skip)        => Chunk(encodeString("SKIPME"), encodeString(if (skip) "YES" else "NO"))
+    }
+  }
+
+  case object ClientPauseModeInput extends Input[ClientPauseMode] {
+    def encode(data: ClientPauseMode)(implicit codec: Codec): Chunk[RespValue.BulkString] =
+      Chunk.single(encodeString(data.stringify))
+  }
+
+  case object ClientTrackingInput
+      extends Input[Option[(Option[Long], Option[ClientTrackingMode], Boolean, Chunk[String])]] {
+    override private[redis] def encode(
+      data: Option[(Option[Long], Option[ClientTrackingMode], Boolean, Chunk[String])]
+    )(implicit codec: Codec): Chunk[RespValue.BulkString] =
+      data match {
+        case Some((clientRedir, mode, noLoop, prefixes)) =>
+          val modeChunk = mode match {
+            case Some(ClientTrackingMode.OptIn)     => Chunk(encodeString("OPTIN"))
+            case Some(ClientTrackingMode.OptOut)    => Chunk(encodeString("OPTOUT"))
+            case Some(ClientTrackingMode.Broadcast) => Chunk(encodeString("BCAST"))
+            case None                               => Chunk.empty
+          }
+          val loopChunk = if (noLoop) Chunk(encodeString("NOLOOP")) else Chunk.empty
+          Chunk(encodeString("ON")) ++
+            clientRedir.map(id => Chunk(encodeString("REDIRECT"), encodeString(id.toString))).getOrElse(Chunk.empty) ++
+            prefixes.flatMap(prefix => Chunk(encodeString("PREFIX"), encodeString(prefix))) ++
+            modeChunk ++
+            loopChunk
+        case None =>
+          Chunk(encodeString("OFF"))
+      }
+  }
+
+  case object ClientTypeInput extends Input[ClientType] {
+    def encode(data: ClientType)(implicit codec: Codec): Chunk[RespValue.BulkString] =
+      Chunk(encodeString("TYPE"), encodeString(data.stringify))
   }
 
   case object CopyInput extends Input[Copy] {
@@ -495,6 +545,16 @@ object Input {
       }
   }
 
+  case object IdInput extends Input[Long] {
+    def encode(data: Long)(implicit codec: Codec): Chunk[RespValue.BulkString] =
+      Chunk(encodeString("ID"), encodeString(data.toString))
+  }
+
+  case object UnblockBehaviorInput extends Input[UnblockBehavior] {
+    def encode(data: UnblockBehavior)(implicit codec: Codec): Chunk[RespValue.BulkString] =
+      Chunk.single(encodeString(data.stringify))
+  }
+
   final case class Varargs[-A](input: Input[A]) extends Input[Iterable[A]] {
     def encode(data: Iterable[A])(implicit codec: Codec): Chunk[RespValue.BulkString] =
       data.foldLeft(Chunk.empty: Chunk[RespValue.BulkString])((acc, a) => acc ++ input.encode(a))
@@ -528,5 +588,10 @@ object Input {
   case object WithJustIdInput extends Input[WithJustId] {
     def encode(data: WithJustId)(implicit codec: Codec): Chunk[RespValue.BulkString] =
       Chunk.single(encodeString(data.stringify))
+  }
+
+  case object YesNoInput extends Input[Boolean] {
+    def encode(data: Boolean)(implicit codec: Codec): Chunk[RespValue.BulkString] =
+      Chunk.single(encodeString(if (data) "YES" else "NO"))
   }
 }

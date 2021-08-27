@@ -79,7 +79,7 @@ private[redis] final class TestExecutor private (
 
   private[this] def runCommand(name: String, input: Chunk[RespValue.BulkString]): USTM[RespValue] = {
     name match {
-      case api.Connection.Ping.name =>
+      case api.Connection.Ping =>
         STM.succeedNow {
           if (input.isEmpty)
             RespValue.bulkString("PONG")
@@ -87,13 +87,13 @@ private[redis] final class TestExecutor private (
             input.head
         }
 
-      case api.Connection.Auth.name =>
+      case api.Connection.Auth =>
         onConnection(name, input)(RespValue.bulkString("OK"))
 
-      case api.Connection.Echo.name =>
+      case api.Connection.Echo =>
         onConnection(name, input)(input.head)
 
-      case api.Connection.Select.name =>
+      case api.Connection.Select =>
         onConnection(name, input)(RespValue.bulkString("OK"))
 
       case api.Sets.SAdd =>
