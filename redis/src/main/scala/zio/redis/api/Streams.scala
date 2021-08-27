@@ -43,25 +43,29 @@ trait Streams {
    * @param pairs rest of the field and value pairs
    * @return ID of the added entry.
    */
-  final def xAdd[SK: Schema, I: Schema, K: Schema, V: Schema, R: Schema](
+  final def xAdd[SK: Schema, I: Schema, K: Schema, V: Schema](
     key: SK,
     id: I,
     pair: (K, V),
     pairs: (K, V)*
-  ): ZIO[RedisExecutor, RedisError, R] = {
-    val command = RedisCommand(
-      XAdd,
-      Tuple4(
-        ArbitraryInput[SK](),
-        OptionalInput(StreamMaxLenInput),
-        ArbitraryInput[I](),
-        NonEmptyList(Tuple2(ArbitraryInput[K](), ArbitraryInput[V]()))
-      ),
-      ArbitraryOutput[R]()
-    )
-    command.run((key, None, id, (pair, pairs.toList)))
-  }
+  ): ResultBuilder[Id] =
+    new ResultBuilder[Id] {
+      def returning[R: Schema]: ZIO[RedisExecutor, RedisError, Id[R]] = {
+        val command = RedisCommand(
+          XAdd,
+          Tuple4(
+            ArbitraryInput[SK](),
+            OptionalInput(StreamMaxLenInput),
+            ArbitraryInput[I](),
+            NonEmptyList(Tuple2(ArbitraryInput[K](), ArbitraryInput[V]()))
+          ),
+          ArbitraryOutput[R]()
+        )
+        command.run((key, None, id, (pair, pairs.toList)))
+      }
+    }
 
+  // TODO: how to handle F[_, _, _]
   /**
    * An introspection command used in order to retrieve different information about the stream.
    *
@@ -75,6 +79,7 @@ trait Streams {
     command.run(key)
   }
 
+  // TODO: how to handle F[_, _, _]
   /**
    * Returns the entire state of the stream, including entries, groups, consumers and PELs.
    *
@@ -92,6 +97,7 @@ trait Streams {
     command.run((key, "FULL"))
   }
 
+  // TODO: how to handle F[_, _, _]
   /**
    * Returns the entire state of the stream, including entries, groups, consumers and PELs.
    *
@@ -149,7 +155,7 @@ trait Streams {
    * @param pairs rest of the field and value pairs
    * @return ID of the added entry.
    */
-  final def xAddWithMaxLen[SK: Schema, I: Schema, K: Schema, V: Schema, R: Schema](
+  final def xAddWithMaxLen[SK: Schema, I: Schema, K: Schema, V: Schema](
     key: SK,
     id: I,
     count: Long,
@@ -157,20 +163,24 @@ trait Streams {
   )(
     pair: (K, V),
     pairs: (K, V)*
-  ): ZIO[RedisExecutor, RedisError, R] = {
-    val command = RedisCommand(
-      XAdd,
-      Tuple4(
-        ArbitraryInput[SK](),
-        OptionalInput(StreamMaxLenInput),
-        ArbitraryInput[I](),
-        NonEmptyList(Tuple2(ArbitraryInput[K](), ArbitraryInput[V]()))
-      ),
-      ArbitraryOutput[R]()
-    )
-    command.run((key, Some(StreamMaxLen(approximate, count)), id, (pair, pairs.toList)))
-  }
+  ): ResultBuilder[Id] =
+    new ResultBuilder[Id] {
+      def returning[R: Schema]: ZIO[RedisExecutor, RedisError, Id[R]] = {
+        val command = RedisCommand(
+          XAdd,
+          Tuple4(
+            ArbitraryInput[SK](),
+            OptionalInput(StreamMaxLenInput),
+            ArbitraryInput[I](),
+            NonEmptyList(Tuple2(ArbitraryInput[K](), ArbitraryInput[V]()))
+          ),
+          ArbitraryOutput[R]()
+        )
+        command.run((key, Some(StreamMaxLen(approximate, count)), id, (pair, pairs.toList)))
+      }
+    }
 
+  // TODO: how to handle this output
   /**
    * Changes the ownership of a pending message.
    *
@@ -232,7 +242,7 @@ trait Streams {
    * @param ids IDs of the rest of the messages
    * @return IDs of the messages that are successfully claimed.
    */
-  final def xClaimWithJustId[SK: Schema, SG: Schema, SC: Schema, I: Schema, R: Schema](
+  final def xClaimWithJustId[SK: Schema, SG: Schema, SC: Schema, I: Schema](
     key: SK,
     group: SG,
     consumer: SC,
@@ -241,26 +251,29 @@ trait Streams {
     time: Option[Duration] = None,
     retryCount: Option[Long] = None,
     force: Boolean = false
-  )(id: I, ids: I*): ZIO[RedisExecutor, RedisError, Chunk[R]] = {
-    val command = RedisCommand(
-      XClaim,
-      Tuple10(
-        ArbitraryInput[SK](),
-        ArbitraryInput[SG](),
-        ArbitraryInput[SC](),
-        DurationMillisecondsInput,
-        NonEmptyList(ArbitraryInput[I]()),
-        OptionalInput(IdleInput),
-        OptionalInput(TimeInput),
-        OptionalInput(RetryCountInput),
-        OptionalInput(WithForceInput),
-        WithJustIdInput
-      ),
-      ChunkOutput(ArbitraryOutput[R]())
-    )
-    val forceOpt = if (force) Some(WithForce) else None
-    command.run((key, group, consumer, minIdleTime, (id, ids.toList), idle, time, retryCount, forceOpt, WithJustId))
-  }
+  )(id: I, ids: I*): ResultBuilder[Chunk] =
+    new ResultBuilder[Chunk] {
+      def returning[R: Schema]: ZIO[RedisExecutor, RedisError, Chunk[R]] = {
+        val command = RedisCommand(
+          XClaim,
+          Tuple10(
+            ArbitraryInput[SK](),
+            ArbitraryInput[SG](),
+            ArbitraryInput[SC](),
+            DurationMillisecondsInput,
+            NonEmptyList(ArbitraryInput[I]()),
+            OptionalInput(IdleInput),
+            OptionalInput(TimeInput),
+            OptionalInput(RetryCountInput),
+            OptionalInput(WithForceInput),
+            WithJustIdInput
+          ),
+          ChunkOutput(ArbitraryOutput[R]())
+        )
+        val forceOpt = if (force) Some(WithForce) else None
+        command.run((key, group, consumer, minIdleTime, (id, ids.toList), idle, time, retryCount, forceOpt, WithJustId))
+      }
+    }
 
   /**
    * Removes the specified entries from a stream.
@@ -316,11 +329,8 @@ trait Streams {
    * @param group ID of the consumer group
    * @return flag that indicates if the deletion was successful.
    */
-  final def xGroupDestroy[SK: Schema, SG: Schema](key: SK, group: SG): ZIO[RedisExecutor, RedisError, Boolean] = {
-    val command =
-      RedisCommand(XGroup, XGroupDestroyInput[SK, SG](), BoolOutput)
-    command.run(Destroy(key, group))
-  }
+  final def xGroupDestroy[SK: Schema, SG: Schema](key: SK, group: SG): ZIO[RedisExecutor, RedisError, Boolean] =
+    RedisCommand(XGroup, XGroupDestroyInput[SK, SG](), BoolOutput).run(Destroy(key, group))
 
   /**
    * Create a new consumer associated with a consumer group.
@@ -420,6 +430,7 @@ trait Streams {
     command.run((key, group, idle, start, end, count, consumer))
   }
 
+  // TODO: how to handle this output
   /**
    * Fetches the stream entries matching a given range of IDs.
    *
@@ -441,6 +452,7 @@ trait Streams {
     command.run((key, start, end, None))
   }
 
+  // TODO: how to handle this output
   /**
    * Fetches the stream entries matching a given range of IDs.
    *
@@ -464,6 +476,7 @@ trait Streams {
     command.run((key, start, end, Some(Count(count))))
   }
 
+  // TODO: how to handle this output
   /**
    * Read data from one or multiple streams.
    *
@@ -488,6 +501,7 @@ trait Streams {
     command.run((count.map(Count), block, (stream, Chunk.fromIterable(streams))))
   }
 
+  // TODO: how to handle this output
   /**
    * Read data from one or multiple streams using consumer group.
    *
@@ -526,6 +540,7 @@ trait Streams {
     command.run((group, consumer, count.map(Count), block, noAckOpt, (stream, Chunk.fromIterable(streams))))
   }
 
+  // TODO: how to handle this output
   /**
    * Fetches the stream entries matching a given range of IDs in the reverse order.
    *
@@ -547,6 +562,7 @@ trait Streams {
     command.run((key, end, start, None))
   }
 
+  // TODO: how to handle this output
   /**
    * Fetches the stream entries matching a given range of IDs in the reverse order.
    *

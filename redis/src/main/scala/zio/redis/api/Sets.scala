@@ -42,10 +42,12 @@ trait Sets {
    * @return Returns the members of the set resulting from the difference between the first set and all the successive
    *         sets.
    */
-  final def sDiff[K: Schema, R: Schema](key: K, keys: K*): ZIO[RedisExecutor, RedisError, Chunk[R]] = {
-    val command = RedisCommand(SDiff, NonEmptyList(ArbitraryInput[K]()), ChunkOutput(ArbitraryOutput[R]()))
-    command.run((key, keys.toList))
-  }
+  final def sDiff[K: Schema](key: K, keys: K*): ResultBuilder[Chunk] =
+    new ResultBuilder[Chunk] {
+      def returning[R: Schema]: ZIO[RedisExecutor, RedisError, Chunk[R]] =
+        RedisCommand(SDiff, NonEmptyList(ArbitraryInput[K]()), ChunkOutput(ArbitraryOutput[R]()))
+          .run((key, keys.toList))
+    }
 
   /**
    * Subtract multiple sets and store the resulting set in a key.
@@ -67,10 +69,12 @@ trait Sets {
    * @param keys Keys of the sets to intersect with each other
    * @return Returns the members of the set resulting from the intersection of all the given sets.
    */
-  final def sInter[K: Schema, R: Schema](destination: K, keys: K*): ZIO[RedisExecutor, RedisError, Chunk[R]] = {
-    val command = RedisCommand(SInter, NonEmptyList(ArbitraryInput[K]()), ChunkOutput(ArbitraryOutput[R]()))
-    command.run((destination, keys.toList))
-  }
+  final def sInter[K: Schema](destination: K, keys: K*): ResultBuilder[Chunk] =
+    new ResultBuilder[Chunk] {
+      def returning[R: Schema]: ZIO[RedisExecutor, RedisError, Chunk[R]] =
+        RedisCommand(SInter, NonEmptyList(ArbitraryInput[K]()), ChunkOutput(ArbitraryOutput[R]()))
+          .run((destination, keys.toList))
+    }
 
   /**
    * Intersect multiple sets and store the resulting set in a key.
@@ -108,10 +112,11 @@ trait Sets {
    * @param key Key of the set to get the members of
    * @return Returns the members of the set.
    */
-  final def sMembers[K: Schema, R: Schema](key: K): ZIO[RedisExecutor, RedisError, Chunk[R]] = {
-    val command = RedisCommand(SMembers, ArbitraryInput[K](), ChunkOutput(ArbitraryOutput[R]()))
-    command.run(key)
-  }
+  final def sMembers[K: Schema](key: K): ResultBuilder[Chunk] =
+    new ResultBuilder[Chunk] {
+      def returning[R: Schema]: ZIO[RedisExecutor, RedisError, Chunk[R]] =
+        RedisCommand(SMembers, ArbitraryInput[K](), ChunkOutput(ArbitraryOutput[R]())).run(key)
+    }
 
   /**
    * Move a member from one set to another.
@@ -137,14 +142,17 @@ trait Sets {
    * @param count Number of elements to remove
    * @return Returns the elements removed.
    */
-  final def sPop[K: Schema, R: Schema](key: K, count: Option[Long] = None): ZIO[RedisExecutor, RedisError, Chunk[R]] = {
-    val command = RedisCommand(
-      SPop,
-      Tuple2(ArbitraryInput[K](), OptionalInput(LongInput)),
-      MultiStringChunkOutput(ArbitraryOutput[R]())
-    )
-    command.run((key, count))
-  }
+  final def sPop[K: Schema](key: K, count: Option[Long] = None): ResultBuilder[Chunk] =
+    new ResultBuilder[Chunk] {
+      def returning[R: Schema]: ZIO[RedisExecutor, RedisError, Chunk[R]] = {
+        val command = RedisCommand(
+          SPop,
+          Tuple2(ArbitraryInput[K](), OptionalInput(LongInput)),
+          MultiStringChunkOutput(ArbitraryOutput[R]())
+        )
+        command.run((key, count))
+      }
+    }
 
   /**
    * Get one or multiple random members from a set.
@@ -153,17 +161,17 @@ trait Sets {
    * @param count Number of elements to randomly get
    * @return Returns the random members.
    */
-  final def sRandMember[K: Schema, R: Schema](
-    key: K,
-    count: Option[Long] = None
-  ): ZIO[RedisExecutor, RedisError, Chunk[R]] = {
-    val command = RedisCommand(
-      SRandMember,
-      Tuple2(ArbitraryInput[K](), OptionalInput(LongInput)),
-      MultiStringChunkOutput(ArbitraryOutput[R]())
-    )
-    command.run((key, count))
-  }
+  final def sRandMember[K: Schema](key: K, count: Option[Long] = None): ResultBuilder[Chunk] =
+    new ResultBuilder[Chunk] {
+      def returning[R: Schema]: ZIO[RedisExecutor, RedisError, Chunk[R]] = {
+        val command = RedisCommand(
+          SRandMember,
+          Tuple2(ArbitraryInput[K](), OptionalInput(LongInput)),
+          MultiStringChunkOutput(ArbitraryOutput[R]())
+        )
+        command.run((key, count))
+      }
+    }
 
   /**
    * Remove one of more members from a set.
@@ -178,6 +186,7 @@ trait Sets {
     command.run((key, (member, members.toList)))
   }
 
+  // TODO: how to handle F[(A, B)]
   /**
    * Incrementally iterate Set elements.
    *
@@ -211,10 +220,12 @@ trait Sets {
    * @param keys Keys of the subsequent sets to add
    * @return Returns a list with members of the resulting set.
    */
-  final def sUnion[K: Schema, R: Schema](key: K, keys: K*): ZIO[RedisExecutor, RedisError, Chunk[R]] = {
-    val command = RedisCommand(SUnion, NonEmptyList(ArbitraryInput[K]()), ChunkOutput(ArbitraryOutput[R]()))
-    command.run((key, keys.toList))
-  }
+  final def sUnion[K: Schema](key: K, keys: K*): ResultBuilder[Chunk] =
+    new ResultBuilder[Chunk] {
+      def returning[R: Schema]: ZIO[RedisExecutor, RedisError, Chunk[R]] =
+        RedisCommand(SUnion, NonEmptyList(ArbitraryInput[K]()), ChunkOutput(ArbitraryOutput[R]()))
+          .run((key, keys.toList))
+    }
 
   /**
    * Add multiple sets and add the resulting set in a key.

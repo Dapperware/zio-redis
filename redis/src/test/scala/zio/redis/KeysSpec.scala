@@ -23,20 +23,20 @@ trait KeysSpec extends BaseSpec {
           key   <- uuid
           value <- uuid
           _     <- set(key, value)
-          v     <- get[String, String](key)
+          v     <- get(key).returning[String]
         } yield assert(v)(isSome(equalTo(value)))
       },
       testM("get non-existing key") {
         for {
           key <- uuid
-          v   <- get[String, String](key)
+          v   <- get(key).returning[String]
         } yield assert(v)(isNone)
       },
       testM("handles wrong types") {
         for {
           key <- uuid
           _   <- sAdd(key, "1", "2", "3")
-          v   <- get[String, String](key).either
+          v   <- get(key).returning[String].either
         } yield assert(v)(isLeft)
       },
       testM("check whether or not key exists") {
@@ -63,7 +63,7 @@ trait KeysSpec extends BaseSpec {
           key2      = "custom_key_2"
           _        <- set(key1, value)
           _        <- set(key2, value)
-          response <- keys[String]("*custom*")
+          response <- keys("*custom*").returning[String]
         } yield assert(response)(hasSameElements(Chunk(key1, key2)))
       },
       testM("unlink existing key") {
@@ -91,7 +91,7 @@ trait KeysSpec extends BaseSpec {
             key             <- uuid
             value           <- uuid
             _               <- set(key, value)
-            scan            <- scan[String](0L, pattern, count, redisType)
+            scan            <- scan(0L, pattern, count, redisType).returning[String]
             (next, elements) = scan
           } yield assert(next)(isGreaterThanEqualTo(0L)) && assert(elements)(isNonEmpty)
         }
@@ -101,8 +101,8 @@ trait KeysSpec extends BaseSpec {
           key       <- uuid
           value     <- uuid
           _         <- set(key, value)
-          allKeys   <- keys[String]("*")
-          randomKey <- randomKey[String]()
+          allKeys   <- keys("*").returning[String]
+          randomKey <- randomKey.returning[String]
         } yield assert(allKeys)(contains(randomKey.get))
       } @@ ignore,
       testM("dump followed by restore") {
@@ -113,7 +113,7 @@ trait KeysSpec extends BaseSpec {
           dumped   <- dump(key)
           _        <- del(key)
           restore  <- restore(key, 0L, dumped).either
-          restored <- get[String, String](key)
+          restored <- get(key).returning[String]
         } yield assert(restore)(isRight) && assert(restored)(isSome(equalTo(value)))
       } @@ ignore,
       suite("migrate")(
@@ -132,8 +132,8 @@ trait KeysSpec extends BaseSpec {
                           replace = Option(Replace),
                           keys = None
                         )
-            originGet <- get[String, String](key)
-            destGet   <- get[String, String](key).provideLayer(KeysSpec.SecondExecutor)
+            originGet <- get(key).returning[String]
+            destGet   <- get(key).returning[String].provideLayer(KeysSpec.SecondExecutor)
           } yield assert(response)(equalTo("OK")) &&
             assert(originGet)(isSome(equalTo(value))) &&
             assert(destGet)(isSome(equalTo(value)))
@@ -154,8 +154,8 @@ trait KeysSpec extends BaseSpec {
                 replace = Option(Replace),
                 keys = None
               )
-            originGet <- get[String, String](key)
-            destGet   <- get[String, String](key).provideLayer(KeysSpec.SecondExecutor)
+            originGet <- get(key).returning[String]
+            destGet   <- get(key).returning[String].provideLayer(KeysSpec.SecondExecutor)
           } yield assert(response)(equalTo("OK")) &&
             assert(originGet)(isNone) &&
             assert(destGet)(isSome(equalTo(value)))
@@ -255,7 +255,7 @@ trait KeysSpec extends BaseSpec {
             value   <- uuid
             _       <- set(key, value)
             renamed <- rename(key, newKey).either
-            v       <- get[String, String](newKey)
+            v       <- get(newKey).returning[String]
           } yield assert(renamed)(isRight) && assert(v)(isSome(equalTo(value)))
         },
         testM("try to rename non-existing key") {
@@ -272,7 +272,7 @@ trait KeysSpec extends BaseSpec {
             value   <- uuid
             _       <- set(key, value)
             renamed <- renameNx(key, newKey)
-            v       <- get[String, String](newKey)
+            v       <- get(newKey).returning[String]
           } yield assert(renamed)(isTrue) && assert(v)(isSome(equalTo(value)))
         },
         testM("try to rename non-existing key with renameNx command") {
@@ -330,7 +330,7 @@ trait KeysSpec extends BaseSpec {
             key    <- uuid
             field  <- uuid
             value  <- uuid
-            _      <- xAdd[String, String, String, String, String](key, "*", (field, value))
+            _      <- xAdd(key, "*", (field, value)).returning[String]
             stream <- typeOf(key)
           } yield assert(stream)(equalTo(RedisType.Stream))
         }
@@ -340,28 +340,28 @@ trait KeysSpec extends BaseSpec {
           for {
             key    <- uuid
             _      <- lPush(key, "1", "0", "2")
-            sorted <- sort[String, String](key)
+            sorted <- sort(key).returning[String]
           } yield assert(sorted)(equalTo(Chunk("0", "1", "2")))
         },
         testM("list of strings") {
           for {
             key    <- uuid
             _      <- lPush(key, "z", "a", "c")
-            sorted <- sort[String, String](key, alpha = Some(Alpha))
+            sorted <- sort(key, alpha = Some(Alpha)).returning[String]
           } yield assert(sorted)(equalTo(Chunk("a", "c", "z")))
         },
         testM("list of numbers, limited") {
           for {
             key    <- uuid
             _      <- lPush(key, "1", "0", "2")
-            sorted <- sort[String, String](key, limit = Some(Limit(1, 1)))
+            sorted <- sort(key, limit = Some(Limit(1, 1))).returning[String]
           } yield assert(sorted)(equalTo(Chunk("1")))
         },
         testM("descending sort") {
           for {
             key    <- uuid
             _      <- lPush(key, "1", "0", "2")
-            sorted <- sort[String, String](key, order = Order.Descending)
+            sorted <- sort(key, order = Order.Descending).returning[String]
           } yield assert(sorted)(equalTo(Chunk("2", "1", "0")))
         },
         testM("by the value referenced by a key-value pair") {
@@ -373,7 +373,7 @@ trait KeysSpec extends BaseSpec {
             prefix <- uuid
             _      <- set(s"${prefix}_$a", "A")
             _      <- set(s"${prefix}_$b", "B")
-            sorted <- sort[String, String](key, by = Some(s"${prefix}_*"), alpha = Some(Alpha))
+            sorted <- sort(key, by = Some(s"${prefix}_*"), alpha = Some(Alpha)).returning[String]
           } yield assert(sorted)(equalTo(Chunk(a, b)))
         },
         testM("getting the value referenced by a key-value pair") {
@@ -383,7 +383,7 @@ trait KeysSpec extends BaseSpec {
             _      <- lPush(key, value)
             prefix <- uuid
             _      <- set(s"${prefix}_$value", "A")
-            sorted <- sort[String, String](key, get = Some((s"${prefix}_*", List.empty)), alpha = Some(Alpha))
+            sorted <- sort(key, get = Some((s"${prefix}_*", List.empty)), alpha = Some(Alpha)).returning[String]
           } yield assert(sorted)(equalTo(Chunk("A")))
         },
         testM("getting multiple value referenced by a key-value pair") {
@@ -395,8 +395,8 @@ trait KeysSpec extends BaseSpec {
             _       <- set(s"${prefix}_$value", "A")
             prefix2 <- uuid
             _       <- set(s"${prefix2}_$value", "0")
-            sorted <-
-              sort[String, String](key, get = Some((s"${prefix}_*", List(s"${prefix2}_*"))), alpha = Some(Alpha))
+            sorted <- sort(key, get = Some((s"${prefix}_*", List(s"${prefix2}_*"))), alpha = Some(Alpha))
+                        .returning[String]
           } yield assert(sorted)(equalTo(Chunk("A", "0")))
         },
         testM("sort and store result") {
@@ -405,7 +405,7 @@ trait KeysSpec extends BaseSpec {
             resultKey <- uuid
             _         <- lPush(key, "1", "0", "2")
             count     <- sortStore(key, Store(resultKey))
-            sorted    <- lRange[String, String](resultKey, Range(0, 2))
+            sorted    <- lRange(resultKey, 0 to 2).returning[String]
           } yield assert(sorted)(equalTo(Chunk("0", "1", "2"))) && assert(count)(equalTo(3L))
         }
       )

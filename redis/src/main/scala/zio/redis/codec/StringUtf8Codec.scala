@@ -10,21 +10,21 @@ import zio.stream.ZTransducer
 import zio.{ Chunk, ZIO }
 
 object StringUtf8Codec extends Codec {
-  override def encoder[A](schema: Schema[A]): ZTransducer[Any, Nothing, A, Byte] =
+  def encoder[A](schema: Schema[A]): ZTransducer[Any, Nothing, A, Byte] =
     ZTransducer.fromPush { (opt: Option[Chunk[A]]) =>
       ZIO.succeed(opt.map(values => values.flatMap(Encoder.encode(schema, _))).getOrElse(Chunk.empty))
     }
 
-  override def encode[A](schema: Schema[A]): A => Chunk[Byte] = { a =>
+  def encode[A](schema: Schema[A]): A => Chunk[Byte] = { a =>
     Encoder.encode(schema, a)
   }
 
-  override def decoder[A](schema: Schema[A]): ZTransducer[Any, String, Byte, A] =
+  def decoder[A](schema: Schema[A]): ZTransducer[Any, String, Byte, A] =
     ZTransducer.fromPush { (opt: Option[Chunk[Byte]]) =>
       ZIO.fromEither(opt.map(chunk => Decoder.decode(schema, chunk).map(Chunk(_))).getOrElse(Right(Chunk.empty)))
     }
 
-  override def decode[A](schema: Schema[A]): Chunk[Byte] => Either[String, A] = { ch =>
+  def decode[A](schema: Schema[A]): Chunk[Byte] => Either[String, A] = { ch =>
     Decoder.decode(schema, ch)
   }
 
@@ -39,6 +39,7 @@ object StringUtf8Codec extends Codec {
   object Decoder {
     def decode[A](schema: Schema[A], chunk: Chunk[Byte]): Either[String, A] = {
       def utf8String = new String(chunk.toArray, StandardCharsets.UTF_8)
+
       schema match {
         case Schema.Primitive(IntType)    => Right(utf8String.toInt.asInstanceOf[A])
         case Schema.Primitive(LongType)   => Right(utf8String.toLong.asInstanceOf[A])

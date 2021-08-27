@@ -52,5 +52,5 @@ class HMGetBenchmarks extends BenchmarkRuntime {
   }
 
   @Benchmark
-  def zio(): Unit = zioUnsafeRun(ZIO.foreach_(items)(it => hmGet[String, String, String](key, it._1)))
+  def zio(): Unit = zioUnsafeRun(ZIO.foreach_(items)(it => hmGet(key, it._1).returning[String]))
 }

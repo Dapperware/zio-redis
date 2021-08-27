@@ -60,7 +60,7 @@ trait SortedSets {
 
   sealed case class LexRange(min: LexMinimum, max: LexMaximum)
 
-  sealed case class MemberScore[M](score: Double, member: M)
+  sealed case class MemberScore[+M](score: Double, member: M)
 
   sealed trait ScoreMaximum { self =>
     private[redis] final def stringify: String =
