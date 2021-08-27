@@ -23,7 +23,7 @@ object BuildHelper {
 
   val Scala212: String = versions("2.12")
   val Scala213: String = versions("2.13")
-  val Zio: String      = "1.0.9"
+  val Zio: String      = "1.0.11"
 
   def buildInfoSettings(packageName: String) =
     List(
