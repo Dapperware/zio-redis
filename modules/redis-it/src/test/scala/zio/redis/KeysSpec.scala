@@ -216,13 +216,13 @@ trait KeysSpec extends IntegrationSpec {
         },
         test("migrate key to another redis server (move and no replace, should fail when key exists)") {
           for {
-            redis    <- ZIO.service[Redis]
-            key      <- uuid
-            value    <- uuid
-            _        <- redis.set(key, value)
-            _        <- ZIO
-                          .serviceWithZIO[Redis](_.set(key, value))
-                          .provideLayer(secondExecutor) // also add to second Redis
+            redis <- ZIO.service[Redis]
+            key   <- uuid
+            value <- uuid
+            _     <- redis.set(key, value)
+            _     <- ZIO
+                       .serviceWithZIO[Redis](_.set(key, value))
+                       .provideLayer(secondExecutor) // also add to second Redis
             response <- redis
                           .migrate(
                             IntegrationSpec.SingleNode1,
