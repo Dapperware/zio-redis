@@ -28,7 +28,7 @@ trait HyperLogLogSpec extends IntegrationSpec {
             redis <- ZIO.service[Redis]
             key   <- uuid
             value <- uuid
-            _     <- redis.set(key, value, None, None, None)
+            _     <- redis.set(key, value, None, None)
             add   <- redis.pfAdd(key, "one", "two", "three").either
           } yield assert(add)(isLeft(isSubtype[RedisError.WrongType](anything)))
         }
@@ -63,7 +63,7 @@ trait HyperLogLogSpec extends IntegrationSpec {
             redis <- ZIO.service[Redis]
             key   <- uuid
             value <- uuid
-            _     <- redis.set(key, value, None, None, None)
+            _     <- redis.set(key, value, None, None)
             count <- redis.pfCount(key).either
           } yield assert(count)(isLeft)
         }
@@ -101,7 +101,7 @@ trait HyperLogLogSpec extends IntegrationSpec {
             value <- uuid
             key2  <- uuid
             key3  <- uuid
-            _     <- redis.set(key, value, None, None, None)
+            _     <- redis.set(key, value, None, None)
             _     <- redis.pfAdd(key2, "five", "six", "seven")
             merge <- redis.pfMerge(key3, key2, key).either
           } yield assert(merge)(isLeft)

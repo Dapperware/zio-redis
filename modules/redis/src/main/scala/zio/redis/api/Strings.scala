@@ -24,8 +24,6 @@ import zio.redis._
 import zio.redis.internal.{RedisCommand, RedisEnvironment}
 import zio.schema.Schema
 
-import java.time.Instant
-
 trait Strings[G[+_]] extends RedisEnvironment[G] {
   import Strings._
 
@@ -216,50 +214,13 @@ trait Strings[G[+_]] extends RedisEnvironment[G] {
    * @param expire
    *   The option which can modify command behavior. e.g. use `Expire.SetExpireSeconds` set the specified expire time in
    *   seconds
-   * @param expireTime
-   *   Time in seconds/milliseconds until the string should expire
    * @return
    *   Returns the value of the string or None if it did not previously have a value.
    */
-  final def getEx[K: Schema](key: K, expire: Expire, expireTime: Duration): ResultBuilder1[Option, G] =
+  final def getEx[K: Schema](key: K, expire: GetExpire): ResultBuilder1[Option, G] =
     new ResultBuilder1[Option, G] {
       def returning[R: Schema]: G[Option[R]] =
-        RedisCommand(GetEx, GetExInput[K](), OptionalOutput(ArbitraryOutput[R]())).run((key, expire, expireTime))
-    }
-
-  /**
-   * Get the value of key and set its expiration.
-   *
-   * @param key
-   *   Key to get the value of
-   * @param expiredAt
-   *   The option which can modify command behavior. e.g. use `Expire.SetExpireAtSeconds` set the specified Unix time at
-   *   which the key will expire in seconds
-   * @param timestamp
-   *   an absolute Unix timestamp (seconds/milliseconds since January 1, 1970)
-   * @return
-   *   Returns the value of the string or None if it did not previously have a value.
-   */
-  final def getEx[K: Schema](key: K, expiredAt: ExpiredAt, timestamp: Instant): ResultBuilder1[Option, G] =
-    new ResultBuilder1[Option, G] {
-      def returning[R: Schema]: G[Option[R]] =
-        RedisCommand(GetEx, GetExAtInput[K](), OptionalOutput(ArbitraryOutput[R]())).run((key, expiredAt, timestamp))
-    }
-
-  /**
-   * Get the value of key and remove the time to live associated with the key.
-   *
-   * @param key
-   *   Key to get the value of
-   * @param persist
-   *   if true, remove the time to live associated with the key, otherwise not
-   * @return
-   *   Returns the value of the string or None if it did not previously have a value.
-   */
-  final def getEx[K: Schema](key: K, persist: Boolean): ResultBuilder1[Option, G] =
-    new ResultBuilder1[Option, G] {
-      def returning[R: Schema]: G[Option[R]] =
-        RedisCommand(GetEx, GetExPersistInput[K](), OptionalOutput(ArbitraryOutput[R]())).run((key, persist))
+        RedisCommand(GetEx, GetExInput[K](), OptionalOutput(ArbitraryOutput[R]())).run((key, expire))
     }
 
   /**
@@ -427,42 +388,16 @@ trait Strings[G[+_]] extends RedisEnvironment[G] {
   }
 
   /**
-   * Set the value and expiration in milliseconds of a key.
-   *
-   * @param key
-   *   Key of the string to set the expiry time on
-   * @param milliseconds
-   *   Time in milliseconds until the string should expire
-   * @param value
-   *   Value to set
-   */
-  final def pSetEx[K: Schema, V: Schema](
-    key: K,
-    milliseconds: Duration,
-    value: V
-  ): G[Unit] = {
-    val command =
-      RedisCommand(
-        PSetEx,
-        Tuple3(ArbitraryKeyInput[K](), DurationMillisecondsInput, ArbitraryValueInput[V]()),
-        UnitOutput
-      )
-    command.run((key, milliseconds, value))
-  }
-
-  /**
    * Set the string value of a key.
    *
    * @param key
    *   Key of the string to set
    * @param value
    *   Value to set
-   * @param expireTime
-   *   Time until the string expires
    * @param update
    *   Update can be Update.SetExisting which only sets the key if it exists, or Update.SetNew which nly sets the key if
    *   it does not exist
-   * @param keepTtl
+   * @param expireAt
    *   When set any previously set expire time remains unchanged
    * @return
    *   true if set was executed correctly, false otherwise.
@@ -470,21 +405,17 @@ trait Strings[G[+_]] extends RedisEnvironment[G] {
   final def set[K: Schema, V: Schema](
     key: K,
     value: V,
-    expireTime: Option[Duration] = None,
     update: Option[Update] = None,
-    keepTtl: Option[KeepTtl] = None
+    expireAt: Option[SetExpire] = None
   ): G[Boolean] = {
-    val input =
-      Tuple5(
-        ArbitraryKeyInput[K](),
-        ArbitraryValueInput[V](),
-        OptionalInput(DurationTtlInput),
-        OptionalInput(UpdateInput),
-        OptionalInput(KeepTtlInput)
-      )
-
+    val input   = Tuple4(
+      ArbitraryKeyInput[K](),
+      ArbitraryValueInput[V](),
+      OptionalInput(UpdateInput),
+      OptionalInput(SetExpireInput)
+    )
     val command = RedisCommand(Set, input, SetOutput)
-    command.run((key, value, expireTime, update, keepTtl))
+    command.run((key, value, update, expireAt))
   }
 
   /**
@@ -506,38 +437,16 @@ trait Strings[G[+_]] extends RedisEnvironment[G] {
   }
 
   /**
-   * Set the value and expiration of a key.
-   *
-   * @param key
-   *   Key of the value to update
-   * @param expiration
-   *   Expiration time for the value
-   * @param value
-   *   New value to set
-   */
-  final def setEx[K: Schema, V: Schema](
-    key: K,
-    expiration: Duration,
-    value: V
-  ): G[Unit] = {
-    val command =
-      RedisCommand(SetEx, Tuple3(ArbitraryKeyInput[K](), DurationSecondsInput, ArbitraryValueInput[V]()), UnitOutput)
-    command.run((key, expiration, value))
-  }
-
-  /**
    * Set the string value of a key with a 'GET' option.
    *
    * @param key
    *   Key of the string to set
    * @param value
    *   Value to set
-   * @param expireTime
-   *   Time until the string expires
    * @param update
    *   Update can be Update.SetExisting which only sets the key if it exists, or Update.SetNew which nly sets the key if
    *   it does not exist
-   * @param keepTtl
+   * @param expireAt
    *   When set any previously set expire time remains unchanged
    * @return
    *   the old value stored at key, or None if key did not exist
@@ -545,38 +454,18 @@ trait Strings[G[+_]] extends RedisEnvironment[G] {
   final def setGet[K: Schema, V: Schema](
     key: K,
     value: V,
-    expireTime: Option[Duration] = None,
     update: Option[Update] = None,
-    keepTtl: Option[KeepTtl] = None
+    expireAt: Option[SetExpire] = None
   ): G[Option[V]] = {
-    val input =
-      Tuple6(
-        ArbitraryKeyInput[K](),
-        ArbitraryValueInput[V](),
-        OptionalInput(DurationTtlInput),
-        OptionalInput(UpdateInput),
-        OptionalInput(KeepTtlInput),
-        GetKeywordInput
-      )
-
+    val input   = Tuple5(
+      ArbitraryKeyInput[K](),
+      ArbitraryValueInput[V](),
+      OptionalInput(UpdateInput),
+      OptionalInput(SetExpireInput),
+      GetKeywordInput
+    )
     val command = RedisCommand(Set, input, OptionalOutput(ArbitraryOutput[V]()))
-    command.run((key, value, expireTime, update, keepTtl, GetKeyword))
-  }
-
-  /**
-   * Set the value of a key, only if the key does not exist.
-   *
-   * @param key
-   *   Key of the value to set if the key does not exist
-   * @param value
-   *   Value to set
-   * @return
-   *   Returns 1 if the key was set. 0 if the key was not set.
-   */
-  final def setNx[K: Schema, V: Schema](key: K, value: V): G[Boolean] = {
-    val command =
-      RedisCommand(SetNx, Tuple2(ArbitraryKeyInput[K](), ArbitraryValueInput[V]()), BoolOutput)
-    command.run((key, value))
+    command.run((key, value, update, expireAt, GetKeyword))
   }
 
   /**
@@ -632,11 +521,8 @@ private[redis] object Strings {
   final val MGet        = "MGET"
   final val MSet        = "MSET"
   final val MSetNx      = "MSETNX"
-  final val PSetEx      = "PSETEX"
   final val Set         = "SET"
   final val SetBit      = "SETBIT"
-  final val SetEx       = "SETEX"
-  final val SetNx       = "SETNX"
   final val SetRange    = "SETRANGE"
   final val StrLen      = "STRLEN"
 }

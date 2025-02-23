@@ -898,7 +898,7 @@ trait Streams[G[+_]] extends RedisEnvironment[G] {
           Tuple3(OptionalInput(CountInput), OptionalInput(BlockInput), StreamsInput[SK, I]()),
           ChunkOutput(StreamOutput[SK, I, RK, RV]())
         )
-        command.run((count.map(Count(_)), block, (stream, Chunk.fromIterable(streams))))
+        command.run((count.map(Count), block, (stream, Chunk.fromIterable(streams))))
       }
     }
 
@@ -949,7 +949,7 @@ trait Streams[G[+_]] extends RedisEnvironment[G] {
           )
 
         val noAckOpt = if (noAck) Some(NoAck) else None
-        command.run((group, consumer, count.map(Count(_)), block, noAckOpt, (stream, Chunk.fromIterable(streams))))
+        command.run((group, consumer, count.map(Count), block, noAckOpt, (stream, Chunk.fromIterable(streams))))
       }
     }
 

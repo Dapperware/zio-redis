@@ -21,20 +21,20 @@ trait Strings {
   sealed trait Lcs
 
   object Lcs {
-    case class PlainLcs(lcs: String)                       extends Lcs
-    case class Length(length: Long)                        extends Lcs
-    case class Matches(matches: List[Match], length: Long) extends Lcs
+    sealed case class Length(length: Long)                        extends Lcs
+    sealed case class Matches(matches: List[Match], length: Long) extends Lcs
+    sealed case class PlainLcs(lcs: String)                       extends Lcs
   }
 
   sealed trait LcsQueryType
 
   object LcsQueryType {
-    case object Len                                                           extends LcsQueryType
-    case class Idx(minMatchLength: Int = 1, withMatchLength: Boolean = false) extends LcsQueryType
+    case object Len                                                                  extends LcsQueryType
+    sealed case class Idx(minMatchLength: Int = 1, withMatchLength: Boolean = false) extends LcsQueryType
   }
 
-  case class MatchIdx(start: Long, end: Long)
-  case class Match(matchIdxA: MatchIdx, matchIdxB: MatchIdx, matchLength: Option[Long] = None)
+  sealed case class MatchIdx(start: Long, end: Long)
+  sealed case class Match(matchIdxA: MatchIdx, matchIdxB: MatchIdx, matchLength: Option[Long] = None)
 
   sealed trait BitFieldCommand
 
@@ -93,36 +93,24 @@ trait Strings {
 
   sealed case class BitPosRange(start: Long, end: Option[Long])
 
-  case object KeepTtl {
-    private[redis] def asString: String = "KEEPTTL"
+  sealed trait SetExpire
+
+  object SetExpire {
+    case object KeepTtl                                                extends SetExpire
+    sealed case class Milliseconds(milliseconds: PositiveLong)         extends SetExpire
+    sealed case class Seconds(seconds: PositiveLong)                   extends SetExpire
+    sealed case class UnixTimeMilliseconds(milliseconds: PositiveLong) extends SetExpire
+    sealed case class UnixTimeSeconds(seconds: PositiveLong)           extends SetExpire
   }
 
-  type KeepTtl = KeepTtl.type
+  sealed trait GetExpire
 
-  sealed trait Expire { self =>
-    private[redis] final def asString: String =
-      self match {
-        case Expire.SetExpireSeconds      => "EX"
-        case Expire.SetExpireMilliseconds => "PX"
-      }
-  }
-
-  object Expire {
-    case object SetExpireSeconds      extends Expire
-    case object SetExpireMilliseconds extends Expire
-  }
-
-  sealed trait ExpiredAt { self =>
-    private[redis] final def asString: String =
-      self match {
-        case ExpiredAt.SetExpireAtSeconds      => "EXAT"
-        case ExpiredAt.SetExpireAtMilliseconds => "PXAT"
-      }
-  }
-
-  object ExpiredAt {
-    case object SetExpireAtSeconds      extends ExpiredAt
-    case object SetExpireAtMilliseconds extends ExpiredAt
+  object GetExpire {
+    case object Persist                                                extends GetExpire
+    sealed case class Milliseconds(milliseconds: PositiveLong)         extends GetExpire
+    sealed case class Seconds(seconds: PositiveLong)                   extends GetExpire
+    sealed case class UnixTimeMilliseconds(milliseconds: PositiveLong) extends GetExpire
+    sealed case class UnixTimeSeconds(seconds: PositiveLong)           extends GetExpire
   }
 
   case object GetKeyword {

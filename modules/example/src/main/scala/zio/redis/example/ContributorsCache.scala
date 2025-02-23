@@ -23,6 +23,7 @@ import zio._
 import zio.json._
 import zio.redis._
 import zio.redis.example.ApiError._
+import zio.redis.options.PositiveLong
 
 trait ContributorsCache {
   def fetchAll(repository: Repository): IO[ApiError, Contributors]
@@ -40,7 +41,7 @@ object ContributorsCache {
       ZIO
         .fromOption(NonEmptyChunk.fromChunk(contributors))
         .map(Contributors(_).toJson)
-        .flatMap(data => redis.set(repository.key, data, Some(1.minute)).orDie)
+        .flatMap(data => redis.set(repository.key, data, expireAt = Some(SetExpire.Seconds(PositiveLong(60)))).orDie)
         .ignore
 
     private def read(repository: Repository): IO[ApiError, Contributors] =

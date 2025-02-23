@@ -183,7 +183,10 @@ trait SortedSetsSpec extends IntegrationSpec {
             key    <- uuid
             _      <- redis.zAdd(key)(MemberScore("v1", 3d))
             _      <- redis.zAdd(key)(MemberScore("v2", 4d))
-            added  <- redis.zAdd(key, update = Some(Update.SetLessThan))(MemberScore("v3", 1d), MemberScore("v1", 2d))
+            added  <- redis.zAdd(key, updateByScore = Some(UpdateByScore.SetLessThan))(
+                        MemberScore("v3", 1d),
+                        MemberScore("v1", 2d)
+                      )
             result <- redis.zRange(key, 0 to -1).returning[String]
           } yield assert(added)(equalTo(1L)) && assert(result.toList)(equalTo(List("v3", "v1", "v2")))
         },
@@ -193,7 +196,10 @@ trait SortedSetsSpec extends IntegrationSpec {
             key    <- uuid
             _      <- redis.zAdd(key)(MemberScore("v1", 1d))
             _      <- redis.zAdd(key)(MemberScore("v2", 2d))
-            added  <- redis.zAdd(key, update = Some(Update.SetGreaterThan))(MemberScore("v3", 1d), MemberScore("v1", 3d))
+            added  <- redis.zAdd(key, updateByScore = Some(UpdateByScore.SetGreaterThan))(
+                        MemberScore("v3", 1d),
+                        MemberScore("v1", 3d)
+                      )
             result <- redis.zRange(key, 0 to -1).returning[String]
           } yield assert(added)(equalTo(1L)) && assert(result.toList)(equalTo(List("v3", "v2", "v1")))
         },
@@ -203,7 +209,7 @@ trait SortedSetsSpec extends IntegrationSpec {
             key    <- uuid
             _      <- redis.zAdd(key)(MemberScore("v1", 1d))
             _      <- redis.zAdd(key)(MemberScore("v2", 2d))
-            added  <- redis.zAdd(key, update = Some(Update.SetGreaterThan), change = Some(Changed))(
+            added  <- redis.zAdd(key, updateByScore = Some(UpdateByScore.SetGreaterThan), change = Some(Changed))(
                         MemberScore("v3", 1d),
                         MemberScore("v1", 3d)
                       )
@@ -431,9 +437,7 @@ trait SortedSetsSpec extends IntegrationSpec {
             _       <- redis.zAdd(second)(MemberScore("b", 2d), MemberScore("b", 2d), MemberScore("d", 4d))
             _       <- redis.zAdd(third)(MemberScore("a", 1d), MemberScore("b", 2d), MemberScore("c", 3d))
             members <- redis.zInter(first, second, third)().returning[String]
-          } yield assert(members)(
-            equalTo(Chunk("b"))
-          )
+          } yield assert(members)(equalTo(Chunk("b")))
         },
         test("error when first parameter is not set") {
           for {
